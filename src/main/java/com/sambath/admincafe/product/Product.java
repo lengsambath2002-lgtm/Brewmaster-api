@@ -40,5 +40,6 @@ public class Product {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(columnDefinition = "TEXT")
     private String image;
 }
