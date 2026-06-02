@@ -6,7 +6,9 @@ COPY build.gradle settings.gradle .
 COPY src src
 RUN chmod +x gradlew
 RUN ./gradlew bootJar -x test
+
 FROM eclipse-temurin:17-jre-focal
 WORKDIR /app
-EXPOSE 9090
+COPY --from=builder /app/build/libs/*.jar app.jar
+EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]
