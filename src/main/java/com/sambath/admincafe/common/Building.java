@@ -33,10 +33,6 @@ public class Building {
                     .url("jdbc:postgresql://dpg-d8f8i4rbc2fs73effd4g-a:5432/leng_sambath")
                     .username("leng_sambath_user")
                     .password("7yA3J3dW8B6AOyWugyKd1pB4A00bYLge");
-            case Real -> builder
-                    .url("jdbc:postgresql://192.168.178.239:5432/wehr")
-                    .username("wehr")
-                    .password("bizwebwehr123$");
         }
 
         return builder.build();
