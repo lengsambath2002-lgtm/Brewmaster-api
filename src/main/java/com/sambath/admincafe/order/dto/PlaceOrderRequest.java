@@ -1,0 +1,15 @@
+package com.sambath.admincafe.order.dto;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
+
+import java.util.List;
+
+public record PlaceOrderRequest(
+        String tableNumber,
+        String customerName,
+        boolean isTakeout,
+        @NotEmpty @Valid List<PlaceOrderItem> items,
+        String kitchenNote
+) {
+}
