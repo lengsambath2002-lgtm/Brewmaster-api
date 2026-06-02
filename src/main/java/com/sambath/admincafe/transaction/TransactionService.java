@@ -26,14 +26,22 @@ public class TransactionService {
     public TransactionResponse createFromOrder(Order order) {
         Transaction tx = new Transaction();
         tx.setOrderId(order.getId());
-        tx.setCustomerName(order.getTableNumber() != null
-                ? order.getTableNumber()
-                : order.getCustomerName());
+        tx.setCustomerName(resolveCustomerName(order));
         tx.setDescription(buildDescription(order.getItems()));
         tx.setItemsCount(order.getItems().stream().mapToInt(OrderItem::getQuantity).sum());
         tx.setAmount(order.getTotal());
         tx.setStatus(TransactionStatus.COMPLETED);
         return toResponse(transactionRepository.save(tx));
+    }
+
+    private static String resolveCustomerName(Order order) {
+        if (isNotBlank(order.getTableNumber())) return order.getTableNumber();
+        if (isNotBlank(order.getCustomerName())) return order.getCustomerName();
+        return "Walk-in";
+    }
+
+    private static boolean isNotBlank(String s) {
+        return s != null && !s.isBlank();
     }
 
     public TransactionResponse toResponse(Transaction t) {
