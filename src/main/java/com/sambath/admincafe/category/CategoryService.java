@@ -2,6 +2,7 @@ package com.sambath.admincafe.category;
 
 import com.sambath.admincafe.category.dto.CategoryRequest;
 import com.sambath.admincafe.category.dto.CategoryResponse;
+import com.sambath.admincafe.common.ConflictException;
 import com.sambath.admincafe.common.NotFoundException;
 import com.sambath.admincafe.product.ProductRepository;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,19 @@ public class CategoryService {
         category.setName(request.name());
         category.setImage(request.image());
         category.setIcon("Coffee");
+        return toResponse(categoryRepository.save(category));
+    }
+
+    public CategoryResponse update(String id, CategoryRequest request) {
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Category not found: " + id));
+        categoryRepository.findFirstByNameIgnoreCase(request.name())
+                .filter(other -> !other.getId().equals(id))
+                .ifPresent(other -> {
+                    throw new ConflictException("Category name already exists.");
+                });
+        category.setName(request.name());
+        category.setImage(request.image());
         return toResponse(categoryRepository.save(category));
     }
 

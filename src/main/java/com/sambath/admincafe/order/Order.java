@@ -37,6 +37,9 @@ public class Order {
     @Column(nullable = false)
     private boolean takeout;
 
+    @Column(nullable = false)
+    private boolean guest = false;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private OrderStatus status = OrderStatus.NEW;

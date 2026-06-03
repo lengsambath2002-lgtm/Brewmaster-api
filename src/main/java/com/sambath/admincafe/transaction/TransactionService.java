@@ -1,12 +1,19 @@
 package com.sambath.admincafe.transaction;
 
+import com.sambath.admincafe.common.ConflictException;
+import com.sambath.admincafe.common.NotFoundException;
 import com.sambath.admincafe.order.Order;
 import com.sambath.admincafe.order.OrderItem;
+import com.sambath.admincafe.order.OrderMapper;
+import com.sambath.admincafe.order.OrderRepository;
+import com.sambath.admincafe.transaction.dto.RefundRequest;
+import com.sambath.admincafe.transaction.dto.RefundResponse;
 import com.sambath.admincafe.transaction.dto.TransactionResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -17,10 +24,57 @@ import java.util.List;
 public class TransactionService {
 
     private final TransactionRepository transactionRepository;
+    private final OrderRepository orderRepository;
+    private final OrderMapper orderMapper;
 
     @Transactional(readOnly = true)
     public List<TransactionResponse> findAll() {
         return transactionRepository.findAll().stream().map(this::toResponse).toList();
+    }
+
+    public RefundResponse refund(String publicId, RefundRequest request) {
+        Long txId = parsePublicId(publicId);
+        Transaction original = transactionRepository.findById(txId)
+                .orElseThrow(() -> new NotFoundException("Transaction not found: " + publicId));
+        if (original.getStatus() == TransactionStatus.REFUNDED) {
+            throw new ConflictException("Transaction already refunded.");
+        }
+
+        BigDecimal amount = request == null || request.amount() == null
+                ? original.getAmount()
+                : request.amount();
+        String reason = request == null ? null : request.reason();
+
+        Transaction refund = new Transaction();
+        refund.setOrderId(original.getOrderId());
+        refund.setCustomerName(original.getCustomerName());
+        refund.setDescription(reason == null || reason.isBlank()
+                ? "Refund — " + original.getDescription()
+                : "Refund — " + reason);
+        refund.setItemsCount(original.getItemsCount());
+        refund.setAmount(amount.negate());
+        refund.setStatus(TransactionStatus.REFUNDED);
+        Transaction savedRefund = transactionRepository.save(refund);
+
+        original.setStatus(TransactionStatus.REFUNDED);
+        transactionRepository.save(original);
+
+        Order order = orderRepository.findById(original.getOrderId())
+                .orElseThrow(() -> new NotFoundException("Order not found: " + original.getOrderId()));
+
+        return new RefundResponse(toResponse(savedRefund), orderMapper.toResponse(order));
+    }
+
+    private static Long parsePublicId(String publicId) {
+        if (publicId == null || publicId.isBlank()) {
+            throw new IllegalArgumentException("transaction id is required");
+        }
+        String raw = publicId.startsWith("BW-") ? publicId.substring(3) : publicId;
+        try {
+            return Long.parseLong(raw);
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("Invalid transaction id: " + publicId);
+        }
     }
 
     public TransactionResponse createFromOrder(Order order) {
