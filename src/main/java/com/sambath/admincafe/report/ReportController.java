@@ -67,11 +67,21 @@ public class ReportController {
                     .body(body);
         }
 
-        if ("pdf".equalsIgnoreCase(format)) {
-            throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED,
-                    "PDF export not yet implemented; use format=csv");
+        if ("xlsx".equalsIgnoreCase(format) || "excel".equalsIgnoreCase(format)) {
+            byte[] body = reportService.exportXlsx(r);
+            String filename = "report-" + r.displayName() + "-" + LocalDate.now() + ".xlsx";
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                    .body(body);
         }
 
-        throw new IllegalArgumentException("Invalid format: " + format + " (use pdf or csv)");
+        if ("pdf".equalsIgnoreCase(format)) {
+            throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED,
+                    "PDF export not yet implemented; use format=csv or format=xlsx");
+        }
+
+        throw new IllegalArgumentException("Invalid format: " + format + " (use csv, xlsx, or pdf)");
     }
 }

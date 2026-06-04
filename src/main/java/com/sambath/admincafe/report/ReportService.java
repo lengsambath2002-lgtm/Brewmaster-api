@@ -12,9 +12,19 @@ import com.sambath.admincafe.report.dto.RevenueSeriesResponse;
 import com.sambath.admincafe.report.dto.TopProductResponse;
 import com.sambath.admincafe.transaction.TransactionRepository;
 import lombok.RequiredArgsConstructor;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
@@ -138,6 +148,154 @@ public class ReportService {
                 topCat.sharePct(),
                 staffEff
         );
+    }
+
+    public byte[] exportXlsx(ReportRange range) {
+        ReportSummaryResponse summary = summary(range);
+        ReportKpisResponse kpis = kpis(range);
+        RevenueSeriesResponse series = revenueSeries(range);
+        List<TopProductResponse> top = topProducts(range, 10);
+
+        try (Workbook wb = new XSSFWorkbook();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            CellStyle header = headerStyle(wb);
+            CellStyle money = moneyStyle(wb);
+            CellStyle percent = percentStyle(wb);
+
+            writeSummarySheet(wb.createSheet("Summary"), summary, header, money, percent);
+            writeKpisSheet(wb.createSheet("KPIs"), kpis, header, money, percent);
+            writeRevenueSheet(wb.createSheet("Revenue Series"), series, header, money);
+            writeTopProductsSheet(wb.createSheet("Top Products"), top, header, money);
+
+            wb.write(out);
+            return out.toByteArray();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to build xlsx report", e);
+        }
+    }
+
+    private void writeSummarySheet(Sheet s, ReportSummaryResponse r, CellStyle header, CellStyle money, CellStyle percent) {
+        writeHeaderRow(s, 0, header, "Metric", "Value");
+        int i = 1;
+        writeKv(s, i++, "Range", r.range());
+        writeKvMoney(s, i++, "Total Revenue", r.totalRevenue(), money);
+        writeKvPercent(s, i++, "Revenue Growth", r.revenueGrowthPct(), percent);
+        writeKvNumber(s, i++, "Total Orders", r.totalOrders());
+        writeKvPercent(s, i++, "Orders Growth", r.ordersGrowthPct(), percent);
+        writeKvNumber(s, i++, "Active Orders", r.activeOrders());
+        writeKv(s, i++, "Top Selling Product", r.topSellingProduct().name());
+        writeKvNumber(s, i++, "Top Product Units", r.topSellingProduct().unitsSold());
+        writeKv(s, i++, "Top Category", r.topCategory().name());
+        writeKvPercent(s, i++, "Top Category Share", r.topCategory().sharePct(), percent);
+        autoSize(s, 2);
+    }
+
+    private void writeKpisSheet(Sheet s, ReportKpisResponse r, CellStyle header, CellStyle money, CellStyle percent) {
+        writeHeaderRow(s, 0, header, "Metric", "Value");
+        int i = 1;
+        writeKv(s, i++, "Range", r.range());
+        writeKvMoney(s, i++, "Avg Order Value", r.avgOrderValue(), money);
+        writeKvPercent(s, i++, "AOV Growth", r.avgOrderValueGrowthPct(), percent);
+        writeKvNumber(s, i++, "New Customers", r.newCustomers());
+        writeKvPercent(s, i++, "New Customers Growth", r.newCustomersGrowthPct(), percent);
+        writeKv(s, i++, "Top Category", r.topCategory());
+        writeKvPercent(s, i++, "Top Category Share", r.topCategorySharePct(), percent);
+        writeKvNumber(s, i++, "Staff Efficiency (min)", r.staffEfficiencyMinutes());
+        autoSize(s, 2);
+    }
+
+    private void writeRevenueSheet(Sheet s, RevenueSeriesResponse r, CellStyle header, CellStyle money) {
+        writeHeaderRow(s, 0, header, "Label", "Date", "Revenue", "Peak");
+        int i = 1;
+        for (RevenuePointResponse p : r.points()) {
+            Row row = s.createRow(i++);
+            row.createCell(0).setCellValue(p.label());
+            row.createCell(1).setCellValue(p.date());
+            Cell rev = row.createCell(2);
+            rev.setCellValue(p.revenue().doubleValue());
+            rev.setCellStyle(money);
+            row.createCell(3).setCellValue(p.isPeak());
+        }
+        autoSize(s, 4);
+    }
+
+    private void writeTopProductsSheet(Sheet s, List<TopProductResponse> products, CellStyle header, CellStyle money) {
+        writeHeaderRow(s, 0, header, "Product", "Category", "Units Sold", "Revenue");
+        int i = 1;
+        for (TopProductResponse p : products) {
+            Row row = s.createRow(i++);
+            row.createCell(0).setCellValue(p.productName());
+            row.createCell(1).setCellValue(p.category());
+            row.createCell(2).setCellValue(p.unitsSold());
+            Cell rev = row.createCell(3);
+            rev.setCellValue(p.revenue().doubleValue());
+            rev.setCellStyle(money);
+        }
+        autoSize(s, 4);
+    }
+
+    private static void writeHeaderRow(Sheet s, int rowIdx, CellStyle style, String... labels) {
+        Row row = s.createRow(rowIdx);
+        for (int i = 0; i < labels.length; i++) {
+            Cell c = row.createCell(i);
+            c.setCellValue(labels[i]);
+            c.setCellStyle(style);
+        }
+    }
+
+    private static void writeKv(Sheet s, int rowIdx, String key, String value) {
+        Row row = s.createRow(rowIdx);
+        row.createCell(0).setCellValue(key);
+        row.createCell(1).setCellValue(value == null ? "" : value);
+    }
+
+    private static void writeKvNumber(Sheet s, int rowIdx, String key, Number value) {
+        Row row = s.createRow(rowIdx);
+        row.createCell(0).setCellValue(key);
+        row.createCell(1).setCellValue(value == null ? 0 : value.doubleValue());
+    }
+
+    private static void writeKvMoney(Sheet s, int rowIdx, String key, BigDecimal value, CellStyle money) {
+        Row row = s.createRow(rowIdx);
+        row.createCell(0).setCellValue(key);
+        Cell v = row.createCell(1);
+        v.setCellValue(value == null ? 0 : value.doubleValue());
+        v.setCellStyle(money);
+    }
+
+    private static void writeKvPercent(Sheet s, int rowIdx, String key, BigDecimal value, CellStyle percent) {
+        Row row = s.createRow(rowIdx);
+        row.createCell(0).setCellValue(key);
+        Cell v = row.createCell(1);
+        v.setCellValue(value == null ? 0 : value.doubleValue() / 100.0);
+        v.setCellStyle(percent);
+    }
+
+    private static CellStyle headerStyle(Workbook wb) {
+        CellStyle style = wb.createCellStyle();
+        Font font = wb.createFont();
+        font.setBold(true);
+        style.setFont(font);
+        return style;
+    }
+
+    private static CellStyle moneyStyle(Workbook wb) {
+        CellStyle style = wb.createCellStyle();
+        style.setDataFormat(wb.createDataFormat().getFormat("#,##0.00"));
+        return style;
+    }
+
+    private static CellStyle percentStyle(Workbook wb) {
+        CellStyle style = wb.createCellStyle();
+        style.setDataFormat(wb.createDataFormat().getFormat("0.0%"));
+        return style;
+    }
+
+    private static void autoSize(Sheet s, int cols) {
+        for (int i = 0; i < cols; i++) {
+            s.autoSizeColumn(i);
+        }
     }
 
     public byte[] exportCsv(ReportRange range) {
