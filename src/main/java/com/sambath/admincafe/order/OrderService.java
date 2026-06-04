@@ -31,7 +31,7 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public List<OrderResponse> findAll() {
-        return orderRepository.findAllByGuestOrderByCreatedAtDesc(false).stream()
+        return orderRepository.findAllByOrderByCreatedAtDesc().stream()
                 .map(orderMapper::toResponse).toList();
     }
 

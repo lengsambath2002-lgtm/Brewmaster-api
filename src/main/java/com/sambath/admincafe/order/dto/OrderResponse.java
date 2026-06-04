@@ -7,6 +7,7 @@ public record OrderResponse(
         String id,
         String tableNumber,
         boolean isTakeout,
+        boolean guest,
         String customerName,
         String timeElapsed,
         String timestamp,

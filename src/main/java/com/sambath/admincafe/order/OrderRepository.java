@@ -11,6 +11,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     List<Order> findAllByGuestOrderByCreatedAtDesc(boolean guest);
 
+    List<Order> findAllByOrderByCreatedAtDesc();
+
 
     @Query("SELECT COUNT(o) FROM Order o WHERE o.createdAt >= :start AND o.createdAt < :end")
     long countBetween(@Param("start") Instant start, @Param("end") Instant end);

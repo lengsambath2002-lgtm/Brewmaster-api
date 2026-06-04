@@ -24,6 +24,7 @@ public class OrderMapper {
                 String.valueOf(o.getId()),
                 o.getTableNumber(),
                 o.isTakeout(),
+                o.isGuest(),
                 o.getCustomerName(),
                 computeTimeElapsed(o),
                 TIMESTAMP_FORMAT.format(o.getCreatedAt()),
