@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PatchMapping;
 
 import java.util.List;
 
@@ -45,5 +46,15 @@ public class ProductController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         productService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/lock")
+    public ProductResponse lock(@PathVariable Long id) {
+        return productService.setLocked(id, true);
+    }
+
+    @PatchMapping("/{id}/unlock")
+    public ProductResponse unlock(@PathVariable Long id) {
+        return productService.setLocked(id, false);
     }
 }

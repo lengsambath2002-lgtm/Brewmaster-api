@@ -7,8 +7,7 @@ public record ProductResponse(
         String name,
         String category,
         BigDecimal price,
-        int stock,
-        String description,
+        boolean locked,
         String image
 ) {
 }

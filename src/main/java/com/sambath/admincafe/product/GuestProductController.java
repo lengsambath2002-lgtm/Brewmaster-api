@@ -17,6 +17,6 @@ public class GuestProductController {
 
     @GetMapping
     public List<ProductResponse> list() {
-        return productService.findAll();
+        return productService.findAllUnlocked();
     }
 }

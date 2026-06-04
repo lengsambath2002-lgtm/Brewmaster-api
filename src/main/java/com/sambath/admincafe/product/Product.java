@@ -35,10 +35,7 @@ public class Product {
     private BigDecimal price;
 
     @Column(nullable = false)
-    private int stock;
-
-    @Column(columnDefinition = "TEXT")
-    private String description;
+    private boolean locked = false;
 
     @Column(columnDefinition = "TEXT")
     private String image;

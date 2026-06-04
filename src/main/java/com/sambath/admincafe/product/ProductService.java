@@ -41,12 +41,22 @@ public class ProductService {
         productRepository.deleteById(id);
     }
 
+    public ProductResponse setLocked(Long id, boolean locked) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Product not found: " + id));
+        product.setLocked(locked);
+        return toResponse(productRepository.save(product));
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProductResponse> findAllUnlocked() {
+        return productRepository.findAllByLockedFalse().stream().map(this::toResponse).toList();
+    }
+
     private void applyRequest(Product product, ProductRequest request) {
         product.setName(request.name());
         product.setCategory(request.category());
         product.setPrice(request.price());
-        product.setStock(request.stock());
-        product.setDescription(request.description());
         product.setImage(request.image());
     }
 
@@ -56,8 +66,7 @@ public class ProductService {
                 p.getName(),
                 p.getCategory(),
                 p.getPrice(),
-                p.getStock(),
-                p.getDescription(),
+                p.isLocked(),
                 p.getImage()
         );
     }
