@@ -1,20 +1,20 @@
 package com.sambath.admincafe.upload;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 @Service
 public class FileStorageService {
@@ -22,24 +22,12 @@ public class FileStorageService {
     private static final Set<String> ALLOWED_EXTS = Set.of(".jpg", ".jpeg", ".png", ".webp", ".gif");
     private static final long MAX_BYTES = 10L * 1024 * 1024;
 
-    private final Path root;
-    private final String publicPath;
+    private final S3Client s3;
+    private final SupabaseS3Properties props;
 
-    public FileStorageService(
-            @Value("${app.upload.dir:./uploads}") String dir,
-            @Value("${app.upload.public-path:/uploads}") String publicPath
-    ) {
-        this.root = Paths.get(dir).toAbsolutePath().normalize();
-        this.publicPath = publicPath.endsWith("/") ? publicPath.substring(0, publicPath.length() - 1) : publicPath;
-    }
-
-    @PostConstruct
-    void ensureDir() {
-        try {
-            Files.createDirectories(root);
-        } catch (IOException e) {
-            throw new UncheckedIOException("Cannot create upload dir: " + root, e);
-        }
+    public FileStorageService(S3Client s3, SupabaseS3Properties props) {
+        this.s3 = s3;
+        this.props = props;
     }
 
     public String save(MultipartFile file) {
@@ -51,21 +39,23 @@ public class FileStorageService {
         }
 
         String ext = resolveExtension(file);
-        String filename = UUID.randomUUID() + ext;
-        Path dest = root.resolve(filename).normalize();
-        if (!dest.startsWith(root)) {
-            throw new IllegalArgumentException("invalid filename");
-        }
+        String key = UUID.randomUUID() + ext;
 
         try {
-            Files.copy(file.getInputStream(), dest, StandardCopyOption.REPLACE_EXISTING);
+            s3.putObject(
+                    PutObjectRequest.builder()
+                            .bucket(props.getS3().getBucket())
+                            .key(key)
+                            .contentType(file.getContentType())
+                            .contentLength(file.getSize())
+                            .build(),
+                    RequestBody.fromInputStream(file.getInputStream(), file.getSize())
+            );
         } catch (IOException e) {
-            throw new UncheckedIOException("Failed to store file " + filename, e);
+            throw new UncheckedIOException("Failed to read upload stream", e);
         }
 
-        return ServletUriComponentsBuilder.fromCurrentContextPath()
-                .path(publicPath + "/" + filename)
-                .toUriString();
+        return publicUrl(key);
     }
 
     public boolean delete(String filename) {
@@ -73,18 +63,20 @@ public class FileStorageService {
             return false;
         }
         try {
-            return Files.deleteIfExists(root.resolve(filename));
-        } catch (IOException e) {
+            s3.deleteObject(DeleteObjectRequest.builder()
+                    .bucket(props.getS3().getBucket())
+                    .key(filename)
+                    .build());
+            return true;
+        } catch (NoSuchKeyException e) {
+            return false;
+        } catch (S3Exception e) {
             return false;
         }
     }
 
-    Path getRoot() {
-        return root;
-    }
-
-    String getPublicPath() {
-        return publicPath;
+    private String publicUrl(String key) {
+        return props.getUrl() + "/storage/v1/object/public/" + props.getS3().getBucket() + "/" + key;
     }
 
     private static String resolveExtension(MultipartFile file) {
