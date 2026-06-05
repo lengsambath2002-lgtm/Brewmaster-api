@@ -2,6 +2,7 @@ package com.sambath.admincafe.upload;
 
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -76,7 +77,11 @@ public class FileStorageService {
     }
 
     private String publicUrl(String key) {
-        return props.getUrl() + "/storage/v1/object/public/" + props.getS3().getBucket() + "/" + key;
+        return UriComponentsBuilder.fromUriString(props.getUrl())
+                .pathSegment("storage", "v1", "object", "public", props.getS3().getBucket(), key)
+                .build()
+                .encode()
+                .toUriString();
     }
 
     private static String resolveExtension(MultipartFile file) {
