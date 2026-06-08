@@ -5,6 +5,8 @@ import java.util.List;
 
 public record OrderResponse(
         String id,
+        Integer orderNumber,
+        String orderDate,
         String tableNumber,
         boolean isTakeout,
         boolean guest,

@@ -16,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
@@ -24,6 +26,7 @@ import java.util.List;
 public class OrderService {
 
     private static final BigDecimal TAX_RATE = new BigDecimal("0.08");
+    private static final ZoneId ORDER_ZONE = ZoneId.of("Asia/Phnom_Penh");
 
     private final OrderRepository orderRepository;
     private final TransactionService transactionService;
@@ -51,6 +54,9 @@ public class OrderService {
 
     private OrderResponse placeInternal(PlaceOrderRequest request, boolean guest) {
         Order order = new Order();
+        LocalDate today = LocalDate.now(ORDER_ZONE);
+        order.setOrderDate(today);
+        order.setDailyNumber(orderRepository.findMaxDailyNumberByOrderDate(today) + 1);
         order.setTableNumber(request.tableNumber());
         order.setCustomerName(request.customerName());
         order.setTakeout(request.isTakeout());

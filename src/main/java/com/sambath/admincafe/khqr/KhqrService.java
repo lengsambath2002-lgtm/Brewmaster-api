@@ -96,7 +96,7 @@ public class KhqrService {
 
         String billNumber = request != null && request.billNumber() != null
                 ? request.billNumber()
-                : "ORDER-" + order.getId();
+                : defaultBillNumber(order);
 
         String currency = request != null && request.currency() != null
                 ? request.currency()
@@ -199,6 +199,13 @@ public class KhqrService {
 
         KHQRDeepLinkData data = unwrap(BakongKHQR.generateDeepLink(url, request.qr(), source));
         return new DeeplinkResponse(data.getShortLink());
+    }
+
+    private String defaultBillNumber(Order order) {
+        if (order.getOrderDate() != null && order.getDailyNumber() != null) {
+            return order.getOrderDate().toString().replace("-", "") + "-" + order.getDailyNumber();
+        }
+        return "ORDER-" + order.getId();
     }
 
     private Long resolveExpiration(Long explicit, Double amount) {

@@ -22,6 +22,8 @@ public class OrderMapper {
                 .toList();
         return new OrderResponse(
                 String.valueOf(o.getId()),
+                o.getDailyNumber(),
+                o.getOrderDate() != null ? o.getOrderDate().toString() : null,
                 o.getTableNumber(),
                 o.isTakeout(),
                 o.isGuest(),

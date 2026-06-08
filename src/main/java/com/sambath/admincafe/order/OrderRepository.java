@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
@@ -16,6 +17,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     @Query("SELECT COUNT(o) FROM Order o WHERE o.createdAt >= :start AND o.createdAt < :end")
     long countBetween(@Param("start") Instant start, @Param("end") Instant end);
+
+    @Query("SELECT COALESCE(MAX(o.dailyNumber), 0) FROM Order o WHERE o.orderDate = :date")
+    int findMaxDailyNumberByOrderDate(@Param("date") LocalDate date);
 
     @Query("SELECT COUNT(o) FROM Order o WHERE o.status IN :statuses")
     long countByStatusIn(@Param("statuses") List<OrderStatus> statuses);
