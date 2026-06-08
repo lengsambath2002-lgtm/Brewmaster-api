@@ -1,0 +1,29 @@
+package com.sambath.admincafe.khqr.dto;
+
+public record DecodeResponse(
+        String payloadFormatIndicator,
+        String pointOfInitiationMethod,
+        String merchantType,
+        String bakongAccountId,
+        String merchantId,
+        String accountInformation,
+        String upiAccountInformation,
+        String acquiringBank,
+        String merchantCategoryCode,
+        String countryCode,
+        String merchantName,
+        String merchantCity,
+        String transactionCurrency,
+        String transactionAmount,
+        String billNumber,
+        String mobileNumber,
+        String storeLabel,
+        String terminalLabel,
+        String purposeOfTransaction,
+        String merchantAlternateLanguagePreference,
+        String merchantNameAlternateLanguage,
+        String merchantCityAlternateLanguage,
+        String creationTimestamp,
+        String expirationTimestamp,
+        String crc
+) {}

@@ -1,5 +1,6 @@
 package com.sambath.admincafe.common;
 
+import com.sambath.admincafe.khqr.KhqrException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -42,6 +43,12 @@ public class GlobalExceptionHandler {
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .collect(Collectors.joining(", "));
         return ResponseEntity.badRequest().body(new ApiError(message, "VALIDATION_ERROR"));
+    }
+
+    @ExceptionHandler(KhqrException.class)
+    public ResponseEntity<ApiError> handleKhqr(KhqrException ex) {
+        String code = ex.getErrorCode() != null ? "KHQR_" + ex.getErrorCode() : "KHQR_ERROR";
+        return ResponseEntity.badRequest().body(new ApiError(ex.getMessage(), code));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
