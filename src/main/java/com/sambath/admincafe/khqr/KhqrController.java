@@ -1,5 +1,6 @@
 package com.sambath.admincafe.khqr;
 
+import com.sambath.admincafe.khqr.dto.CheckResponse;
 import com.sambath.admincafe.khqr.dto.DecodeResponse;
 import com.sambath.admincafe.khqr.dto.DeeplinkRequest;
 import com.sambath.admincafe.khqr.dto.DeeplinkResponse;
@@ -49,6 +50,11 @@ public class KhqrController {
         return khqrService.verify(payload.qr());
     }
 
+    @PostMapping("/check")
+    public CheckResponse check(@Valid @RequestBody Md5Payload payload) {
+        return khqrService.checkByMd5(payload.md5());
+    }
+
     @PostMapping("/decode")
     public DecodeResponse decode(@Valid @RequestBody QrPayload payload) {
         return khqrService.decode(payload.qr());
@@ -65,4 +71,6 @@ public class KhqrController {
     }
 
     public record QrPayload(@NotBlank String qr) {}
+
+    public record Md5Payload(@NotBlank String md5) {}
 }

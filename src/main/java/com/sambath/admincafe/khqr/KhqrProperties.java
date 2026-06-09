@@ -21,6 +21,7 @@ public class KhqrProperties {
     private String mobileNumber;
     private long expirationMinutes = 15;
     private Deeplink deeplink = new Deeplink();
+    private BakongApi bakongApi = new BakongApi();
 
     @Getter
     @Setter
@@ -29,5 +30,14 @@ public class KhqrProperties {
         private String appName;
         private String appIconUrl;
         private String appCallback;
+    }
+
+    // Bakong Open API — used to check whether a generated KHQR has been paid
+    // (POST {baseUrl}/v1/check_transaction_by_md5 with a developer token).
+    @Getter
+    @Setter
+    public static class BakongApi {
+        private String baseUrl = "https://api-bakong.nbc.gov.kh";
+        private String token;
     }
 }

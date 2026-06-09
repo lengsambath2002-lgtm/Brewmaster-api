@@ -1,6 +1,7 @@
 package com.sambath.admincafe.khqr;
 
 import com.sambath.admincafe.common.NotFoundException;
+import com.sambath.admincafe.khqr.dto.CheckResponse;
 import com.sambath.admincafe.khqr.dto.DecodeResponse;
 import com.sambath.admincafe.khqr.dto.DeeplinkRequest;
 import com.sambath.admincafe.khqr.dto.DeeplinkResponse;
@@ -11,6 +12,7 @@ import com.sambath.admincafe.khqr.dto.OrderKhqrRequest;
 import com.sambath.admincafe.khqr.dto.VerifyResponse;
 import com.sambath.admincafe.order.Order;
 import com.sambath.admincafe.order.OrderRepository;
+import com.sambath.admincafe.order.PaymentStatus;
 import kh.gov.nbc.bakong_khqr.BakongKHQR;
 import kh.gov.nbc.bakong_khqr.model.CRCValidation;
 import kh.gov.nbc.bakong_khqr.model.IndividualInfo;
@@ -24,7 +26,11 @@ import kh.gov.nbc.bakong_khqr.model.KHQRStatus;
 import kh.gov.nbc.bakong_khqr.model.MerchantInfo;
 import kh.gov.nbc.bakong_khqr.model.SourceInfo;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -36,6 +42,7 @@ public class KhqrService {
 
     private final KhqrProperties properties;
     private final OrderRepository orderRepository;
+    private final RestClient restClient = RestClient.create();
 
     public KhqrResponse generateIndividual(GenerateIndividualRequest request) {
         IndividualInfo info = new IndividualInfo();
@@ -107,8 +114,9 @@ public class KhqrService {
                 : null;
 
         String merchantId = properties.getMerchantId();
+        KhqrResponse generated;
         if (merchantId != null && !merchantId.isBlank()) {
-            return generateMerchant(new GenerateMerchantRequest(
+            generated = generateMerchant(new GenerateMerchantRequest(
                     properties.getBakongAccountId(),
                     merchantId,
                     properties.getAcquiringBank(),
@@ -124,30 +132,77 @@ public class KhqrService {
                     expiration,
                     properties.getMerchantCategoryCode()
             ));
+        } else {
+            generated = generateIndividual(new GenerateIndividualRequest(
+                    properties.getBakongAccountId(),
+                    properties.getMerchantName(),
+                    properties.getMerchantCity(),
+                    properties.getAcquiringBank(),
+                    null,
+                    currency,
+                    amount,
+                    billNumber,
+                    properties.getMobileNumber(),
+                    properties.getStoreLabel(),
+                    properties.getTerminalLabel(),
+                    null, null, null, null, null,
+                    expiration,
+                    properties.getMerchantCategoryCode()
+            ));
         }
 
-        return generateIndividual(new GenerateIndividualRequest(
-                properties.getBakongAccountId(),
-                properties.getMerchantName(),
-                properties.getMerchantCity(),
-                properties.getAcquiringBank(),
-                null,
-                currency,
-                amount,
-                billNumber,
-                properties.getMobileNumber(),
-                properties.getStoreLabel(),
-                properties.getTerminalLabel(),
-                null, null, null, null, null,
-                expiration,
-                properties.getMerchantCategoryCode()
-        ));
+        // Bind the QR's md5 to the order so /api/khqr/check can flip it to PAID later.
+        if (generated.md5() != null && !generated.md5().isBlank()
+                && order.getPaymentStatus() != PaymentStatus.PAID) {
+            order.setBakongMd5(generated.md5());
+            orderRepository.save(order);
+        }
+        return generated;
     }
 
     public VerifyResponse verify(String qrCode) {
         KHQRResponse<CRCValidation> response = BakongKHQR.verify(qrCode);
         CRCValidation data = response.getData();
         return new VerifyResponse(data != null && data.isValid());
+    }
+
+    /**
+     * Checks whether a generated KHQR has been paid, by querying the Bakong Open
+     * API ({baseUrl}/v1/check_transaction_by_md5) with the configured developer
+     * token. A responseCode of 0 means the transaction was found (i.e. paid).
+     */
+    public CheckResponse checkByMd5(String md5) {
+        String token = properties.getBakongApi().getToken();
+        if (token == null || token.isBlank()) {
+            throw new KhqrException(15, "Bakong API token is not configured (set KHQR_BAKONG_API_TOKEN).");
+        }
+        String url = properties.getBakongApi().getBaseUrl() + "/v1/check_transaction_by_md5";
+        try {
+            Map<?, ?> body = restClient.post()
+                    .uri(url)
+                    .header("Authorization", "Bearer " + token)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of("md5", md5))
+                    .retrieve()
+                    .body(Map.class);
+            Integer responseCode = body != null && body.get("responseCode") instanceof Number n ? n.intValue() : null;
+            String message = body != null && body.get("responseMessage") != null
+                    ? String.valueOf(body.get("responseMessage"))
+                    : null;
+            boolean paid = responseCode != null && responseCode == 0;
+            if (paid) {
+                markOrderPaid(md5);
+            }
+            return new CheckResponse(paid, responseCode, message);
+        } catch (RestClientResponseException ex) {
+            if (ex.getStatusCode().value() == 401) {
+                throw new KhqrException(15, "Bakong API token rejected (401).");
+            }
+            // Bakong returns a non-2xx body when the transaction isn't found yet — treat as unpaid.
+            return new CheckResponse(false, ex.getStatusCode().value(), ex.getStatusText());
+        } catch (RestClientException ex) {
+            throw new KhqrException(13, "Cannot reach Bakong API: " + ex.getMessage());
+        }
     }
 
     public DecodeResponse decode(String qrCode) {
@@ -199,6 +254,17 @@ public class KhqrService {
 
         KHQRDeepLinkData data = unwrap(BakongKHQR.generateDeepLink(url, request.qr(), source));
         return new DeeplinkResponse(data.getShortLink());
+    }
+
+    private void markOrderPaid(String md5) {
+        orderRepository.findFirstByBakongMd5(md5).ifPresent(order -> {
+            if (order.getPaymentStatus() == PaymentStatus.PAID) {
+                return;
+            }
+            order.setPaymentStatus(PaymentStatus.PAID);
+            order.setPaidAt(Instant.now());
+            orderRepository.save(order);
+        });
     }
 
     private String defaultBillNumber(Order order) {

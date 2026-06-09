@@ -19,6 +19,7 @@ public class WebMvcAuthConfig implements WebMvcConfigurer {
                         "/api/login",
                         "/api/health",
                         "/api/guest/**",
+                        "/api/khqr/check",
                         "/v3/api-docs/**",
                         "/swagger-ui/**",
                         "/swagger-ui.html"

@@ -52,6 +52,15 @@ public class Order {
     @Column(nullable = false)
     private OrderStatus status = OrderStatus.NEW;
 
+    @Enumerated(EnumType.STRING)
+    @Column(columnDefinition = "varchar(16) default 'UNPAID' not null")
+    private PaymentStatus paymentStatus = PaymentStatus.UNPAID;
+
+    @Column(length = 64)
+    private String bakongMd5;
+
+    private Instant paidAt;
+
     @Column(nullable = false)
     private String server = "Alex Rivera";
 

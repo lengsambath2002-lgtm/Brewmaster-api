@@ -36,7 +36,9 @@ public class OrderMapper {
                 o.getSubtotal(),
                 o.getTax(),
                 o.getTotal(),
-                o.getKitchenNote()
+                o.getKitchenNote(),
+                o.getPaymentStatus() != null ? o.getPaymentStatus().name() : null,
+                o.getPaidAt() != null ? o.getPaidAt().toString() : null
         );
     }
 

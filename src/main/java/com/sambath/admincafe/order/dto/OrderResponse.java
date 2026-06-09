@@ -19,6 +19,8 @@ public record OrderResponse(
         BigDecimal subtotal,
         BigDecimal tax,
         BigDecimal total,
-        String kitchenNote
+        String kitchenNote,
+        String paymentStatus,
+        String paidAt
 ) {
 }
