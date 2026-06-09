@@ -15,6 +15,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     List<Order> findAllByOrderByCreatedAtDesc();
 
+    List<Order> findAllByPaymentStatusOrderByCreatedAtDesc(PaymentStatus paymentStatus);
+
     Optional<Order> findFirstByBakongMd5(String bakongMd5);
 
 

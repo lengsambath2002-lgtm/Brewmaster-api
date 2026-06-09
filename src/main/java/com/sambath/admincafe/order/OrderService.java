@@ -44,6 +44,12 @@ public class OrderService {
                 .map(orderMapper::toResponse).toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<OrderResponse> findAllPaid() {
+        return orderRepository.findAllByPaymentStatusOrderByCreatedAtDesc(PaymentStatus.PAID).stream()
+                .map(orderMapper::toResponse).toList();
+    }
+
     public OrderResponse place(PlaceOrderRequest request) {
         return placeInternal(request, false);
     }

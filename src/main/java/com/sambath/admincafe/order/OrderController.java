@@ -38,6 +38,11 @@ public class OrderController {
         return orderService.findAllGuest();
     }
 
+    @GetMapping("/paid")
+    public List<OrderResponse> listPaid() {
+        return orderService.findAllPaid();
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public OrderResponse place(@Valid @RequestBody PlaceOrderRequest request) {
