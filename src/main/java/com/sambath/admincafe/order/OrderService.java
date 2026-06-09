@@ -86,7 +86,9 @@ public class OrderService {
     public OrderResponse update(Long id, UpdateOrderRequest request) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Order not found: " + id));
-        if (order.getStatus() == OrderStatus.COMPLETED || order.getStatus() == OrderStatus.PICKED_UP) {
+        if (order.getStatus() == OrderStatus.COMPLETED
+                || order.getStatus() == OrderStatus.PICKED_UP
+                || order.getStatus() == OrderStatus.CANCELLED) {
             throw new ConflictException("Order is " + order.getStatus().toDisplay() + " and cannot be edited.");
         }
 

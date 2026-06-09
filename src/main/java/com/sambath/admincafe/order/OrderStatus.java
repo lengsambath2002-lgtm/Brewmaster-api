@@ -5,7 +5,8 @@ public enum OrderStatus {
     PREPARING,
     READY,
     PICKED_UP,
-    COMPLETED;
+    COMPLETED,
+    CANCELLED;
 
     public static OrderStatus fromDisplay(String value) {
         if (value == null) {
@@ -17,6 +18,7 @@ public enum OrderStatus {
             case "Ready" -> READY;
             case "Picked Up" -> PICKED_UP;
             case "Completed" -> COMPLETED;
+            case "Cancelled" -> CANCELLED;
             default -> throw new IllegalArgumentException("Invalid status: " + value);
         };
     }
@@ -28,6 +30,7 @@ public enum OrderStatus {
             case READY -> "Ready";
             case PICKED_UP -> "Picked Up";
             case COMPLETED -> "Completed";
+            case CANCELLED -> "Cancelled";
         };
     }
 }
