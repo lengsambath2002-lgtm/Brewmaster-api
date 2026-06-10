@@ -50,15 +50,15 @@ public class OrderService {
                 .map(orderMapper::toResponse).toList();
     }
 
-    public OrderResponse place(PlaceOrderRequest request) {
-        return placeInternal(request, false);
+    public OrderResponse place(PlaceOrderRequest request, String serverName) {
+        return placeInternal(request, false, serverName);
     }
 
     public OrderResponse placeAsGuest(PlaceOrderRequest request) {
-        return placeInternal(request, true);
+        return placeInternal(request, true, "Guest");
     }
 
-    private OrderResponse placeInternal(PlaceOrderRequest request, boolean guest) {
+    private OrderResponse placeInternal(PlaceOrderRequest request, boolean guest, String serverName) {
         Order order = new Order();
         LocalDate today = LocalDate.now(ORDER_ZONE);
         order.setOrderDate(today);
@@ -68,6 +68,7 @@ public class OrderService {
         order.setTakeout(request.isTakeout());
         order.setKitchenNote(request.kitchenNote());
         order.setGuest(guest);
+        order.setServer(serverName == null || serverName.isBlank() ? "Staff" : serverName);
 
         for (PlaceOrderItem item : request.items()) {
             OrderItem oi = new OrderItem();
@@ -130,12 +131,16 @@ public class OrderService {
         OrderStatus newStatus = OrderStatus.fromDisplay(statusDisplay);
         order.setStatus(newStatus);
         order.setStatusUpdatedAt(Instant.now());
-        Order saved = orderRepository.save(order);
 
         TransactionResponse transaction = null;
         if (newStatus == OrderStatus.COMPLETED) {
-            transaction = transactionService.createFromOrder(saved);
+            transaction = transactionService.createFromOrder(order);
+        } else if (newStatus == OrderStatus.CANCELLED && order.getPaymentStatus() == PaymentStatus.PAID) {
+            transaction = transactionService.refundForCancelledOrder(order);
+            order.setPaymentStatus(PaymentStatus.REFUNDED);
         }
+
+        Order saved = orderRepository.save(order);
         return new UpdateStatusResponse(orderMapper.toResponse(saved), transaction);
     }
 

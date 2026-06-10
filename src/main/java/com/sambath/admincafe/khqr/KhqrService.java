@@ -28,6 +28,7 @@ import kh.gov.nbc.bakong_khqr.model.SourceInfo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
@@ -38,6 +39,7 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class KhqrService {
 
     private final KhqrProperties properties;
@@ -170,8 +172,18 @@ public class KhqrService {
      * Checks whether a generated KHQR has been paid, by querying the Bakong Open
      * API ({baseUrl}/v1/check_transaction_by_md5) with the configured developer
      * token. A responseCode of 0 means the transaction was found (i.e. paid).
+     *
+     * The endpoint is public, so we require the caller to supply both orderId and
+     * md5 and verify they match the value bound at QR-generation time — otherwise
+     * an attacker could probe arbitrary md5s and trigger Bakong API quota usage.
      */
-    public CheckResponse checkByMd5(String md5) {
+    public CheckResponse checkByMd5(Long orderId, String md5) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new NotFoundException("Order not found: " + orderId));
+        if (order.getBakongMd5() == null || !order.getBakongMd5().equals(md5)) {
+            throw new NotFoundException("Payment not found for this order.");
+        }
+
         String token = properties.getBakongApi().getToken();
         if (token == null || token.isBlank()) {
             throw new KhqrException(15, "Bakong API token is not configured (set KHQR_BAKONG_API_TOKEN).");
@@ -191,7 +203,7 @@ public class KhqrService {
                     : null;
             boolean paid = responseCode != null && responseCode == 0;
             if (paid) {
-                markOrderPaid(md5);
+                markOrderPaid(order);
             }
             return new CheckResponse(paid, responseCode, message);
         } catch (RestClientResponseException ex) {
@@ -256,15 +268,13 @@ public class KhqrService {
         return new DeeplinkResponse(data.getShortLink());
     }
 
-    private void markOrderPaid(String md5) {
-        orderRepository.findFirstByBakongMd5(md5).ifPresent(order -> {
-            if (order.getPaymentStatus() == PaymentStatus.PAID) {
-                return;
-            }
-            order.setPaymentStatus(PaymentStatus.PAID);
-            order.setPaidAt(Instant.now());
-            orderRepository.save(order);
-        });
+    private void markOrderPaid(Order order) {
+        if (order.getPaymentStatus() == PaymentStatus.PAID) {
+            return;
+        }
+        order.setPaymentStatus(PaymentStatus.PAID);
+        order.setPaidAt(Instant.now());
+        orderRepository.save(order);
     }
 
     private String defaultBillNumber(Order order) {

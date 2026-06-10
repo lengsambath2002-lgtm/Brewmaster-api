@@ -6,6 +6,7 @@ import com.sambath.admincafe.order.Order;
 import com.sambath.admincafe.order.OrderItem;
 import com.sambath.admincafe.order.OrderMapper;
 import com.sambath.admincafe.order.OrderRepository;
+import com.sambath.admincafe.order.PaymentStatus;
 import com.sambath.admincafe.transaction.dto.RefundRequest;
 import com.sambath.admincafe.transaction.dto.RefundResponse;
 import com.sambath.admincafe.transaction.dto.TransactionResponse;
@@ -61,6 +62,10 @@ public class TransactionService {
 
         Order order = orderRepository.findById(original.getOrderId())
                 .orElseThrow(() -> new NotFoundException("Order not found: " + original.getOrderId()));
+        if (order.getPaymentStatus() == PaymentStatus.PAID) {
+            order.setPaymentStatus(PaymentStatus.REFUNDED);
+            orderRepository.save(order);
+        }
 
         return new RefundResponse(toResponse(savedRefund), orderMapper.toResponse(order));
     }
@@ -86,6 +91,18 @@ public class TransactionService {
         tx.setAmount(order.getTotal());
         tx.setStatus(TransactionStatus.COMPLETED);
         return toResponse(transactionRepository.save(tx));
+    }
+
+    public TransactionResponse refundForCancelledOrder(Order order) {
+        BigDecimal amount = order.getTotal() == null ? BigDecimal.ZERO : order.getTotal().negate();
+        Transaction refund = new Transaction();
+        refund.setOrderId(order.getId());
+        refund.setCustomerName(resolveCustomerName(order));
+        refund.setDescription("Refund — order cancelled");
+        refund.setItemsCount(order.getItems().stream().mapToInt(OrderItem::getQuantity).sum());
+        refund.setAmount(amount);
+        refund.setStatus(TransactionStatus.REFUNDED);
+        return toResponse(transactionRepository.save(refund));
     }
 
     private static String resolveCustomerName(Order order) {

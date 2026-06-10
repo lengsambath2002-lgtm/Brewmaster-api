@@ -47,8 +47,22 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(KhqrException.class)
     public ResponseEntity<ApiError> handleKhqr(KhqrException ex) {
-        String code = ex.getErrorCode() != null ? "KHQR_" + ex.getErrorCode() : "KHQR_ERROR";
-        return ResponseEntity.badRequest().body(new ApiError(ex.getMessage(), code));
+        Integer errorCode = ex.getErrorCode();
+        String code = errorCode != null ? "KHQR_" + errorCode : "KHQR_ERROR";
+        HttpStatus status = mapKhqrStatus(errorCode);
+        if (status.is5xxServerError()) {
+            log.error("KHQR server-side failure ({}): {}", code, ex.getMessage());
+        }
+        return ResponseEntity.status(status).body(new ApiError(ex.getMessage(), code));
+    }
+
+    private static HttpStatus mapKhqrStatus(Integer errorCode) {
+        if (errorCode == null) return HttpStatus.BAD_REQUEST;
+        return switch (errorCode) {
+            case 13 -> HttpStatus.BAD_GATEWAY;        // Bakong unreachable
+            case 15, 29 -> HttpStatus.SERVICE_UNAVAILABLE; // Server misconfiguration
+            default -> HttpStatus.BAD_REQUEST;         // SDK validation / client input
+        };
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

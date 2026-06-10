@@ -1,10 +1,13 @@
 package com.sambath.admincafe.order;
 
+import com.sambath.admincafe.auth.AuthInterceptor;
+import com.sambath.admincafe.auth.dto.AuthUser;
 import com.sambath.admincafe.order.dto.OrderResponse;
 import com.sambath.admincafe.order.dto.PlaceOrderRequest;
 import com.sambath.admincafe.order.dto.UpdateOrderRequest;
 import com.sambath.admincafe.order.dto.UpdateStatusRequest;
 import com.sambath.admincafe.order.dto.UpdateStatusResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -45,8 +48,10 @@ public class OrderController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public OrderResponse place(@Valid @RequestBody PlaceOrderRequest request) {
-        return orderService.place(request);
+    public OrderResponse place(@Valid @RequestBody PlaceOrderRequest request, HttpServletRequest httpRequest) {
+        AuthUser user = (AuthUser) httpRequest.getAttribute(AuthInterceptor.USER_ATTR);
+        String serverName = user != null ? user.name() : null;
+        return orderService.place(request, serverName);
     }
 
     @PatchMapping("/{id}/status")

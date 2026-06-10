@@ -8,6 +8,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
@@ -22,9 +23,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "orders", uniqueConstraints = @UniqueConstraint(
-        name = "uk_orders_date_daily_number",
-        columnNames = {"order_date", "daily_number"}))
+@Table(name = "orders",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_orders_date_daily_number",
+                columnNames = {"order_date", "daily_number"}),
+        indexes = {
+                @Index(name = "idx_orders_payment_status_created_at",
+                        columnList = "payment_status, created_at")
+        })
 @Getter
 @Setter
 @NoArgsConstructor
@@ -56,13 +62,13 @@ public class Order {
     @Column(columnDefinition = "varchar(16) default 'UNPAID' not null")
     private PaymentStatus paymentStatus = PaymentStatus.UNPAID;
 
-    @Column(length = 64)
+    @Column(length = 64, unique = true)
     private String bakongMd5;
 
     private Instant paidAt;
 
     @Column(nullable = false)
-    private String server = "Alex Rivera";
+    private String server;
 
     @Column(precision = 10, scale = 2)
     private BigDecimal subtotal;

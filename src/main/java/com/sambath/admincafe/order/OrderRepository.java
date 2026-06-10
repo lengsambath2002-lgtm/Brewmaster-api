@@ -7,7 +7,6 @@ import org.springframework.data.repository.query.Param;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
@@ -16,8 +15,6 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findAllByOrderByCreatedAtDesc();
 
     List<Order> findAllByPaymentStatusOrderByCreatedAtDesc(PaymentStatus paymentStatus);
-
-    Optional<Order> findFirstByBakongMd5(String bakongMd5);
 
 
     @Query("SELECT COUNT(o) FROM Order o WHERE o.createdAt >= :start AND o.createdAt < :end")
