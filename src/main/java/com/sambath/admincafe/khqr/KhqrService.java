@@ -34,6 +34,7 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.Map;
 
@@ -54,7 +55,7 @@ public class KhqrService {
         info.setAccountInformation(request.accountInformation());
         info.setAcquiringBank(orDefault(request.acquiringBank(), properties.getAcquiringBank()));
         info.setCurrency(parseCurrency(orDefault(request.currency(), properties.getCurrency())));
-        info.setAmount(request.amount());
+        info.setAmount(roundAmount(request.amount()));
         info.setBillNumber(request.billNumber());
         info.setMobileNumber(orDefault(request.mobileNumber(), properties.getMobileNumber()));
         info.setStoreLabel(orDefault(request.storeLabel(), properties.getStoreLabel()));
@@ -78,7 +79,7 @@ public class KhqrService {
         info.setMerchantName(request.merchantName());
         info.setMerchantCity(orDefault(request.merchantCity(), properties.getMerchantCity()));
         info.setCurrency(parseCurrency(orDefault(request.currency(), properties.getCurrency())));
-        info.setAmount(request.amount());
+        info.setAmount(roundAmount(request.amount()));
         info.setBillNumber(request.billNumber());
         info.setMobileNumber(orDefault(request.mobileNumber(), properties.getMobileNumber()));
         info.setStoreLabel(orDefault(request.storeLabel(), properties.getStoreLabel()));
@@ -282,6 +283,12 @@ public class KhqrService {
             return order.getOrderDate().toString().replace("-", "") + "-" + order.getDailyNumber();
         }
         return "ORDER-" + order.getId();
+    }
+
+    // KHQR rejects amounts with more than 2 decimals (float math can produce
+    // values like 4.31999999999). Normalize before handing it to the SDK.
+    private static Double roundAmount(Double amount) {
+        return amount == null ? null : BigDecimal.valueOf(amount).setScale(2, RoundingMode.HALF_UP).doubleValue();
     }
 
     private Long resolveExpiration(Long explicit, Double amount) {
