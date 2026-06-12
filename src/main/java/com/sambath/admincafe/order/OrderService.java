@@ -25,7 +25,6 @@ import java.util.List;
 @Transactional
 public class OrderService {
 
-    private static final BigDecimal TAX_RATE = new BigDecimal("0.08");
     private static final ZoneId ORDER_ZONE = ZoneId.of("Asia/Phnom_Penh");
 
     private final OrderRepository orderRepository;
@@ -150,10 +149,7 @@ public class OrderService {
             subtotal = subtotal.add(oi.getPriceOrder());
         }
         subtotal = subtotal.setScale(2, RoundingMode.HALF_UP);
-        BigDecimal tax = subtotal.multiply(TAX_RATE).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal total = subtotal.add(tax).setScale(2, RoundingMode.HALF_UP);
         order.setSubtotal(subtotal);
-        order.setTax(tax);
-        order.setTotal(total);
+        order.setTotal(subtotal);
     }
 }

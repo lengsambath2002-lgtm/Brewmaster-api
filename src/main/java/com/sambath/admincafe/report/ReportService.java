@@ -9,6 +9,8 @@ import com.sambath.admincafe.report.dto.ReportKpisResponse;
 import com.sambath.admincafe.report.dto.ReportSummaryResponse;
 import com.sambath.admincafe.report.dto.RevenuePointResponse;
 import com.sambath.admincafe.report.dto.RevenueSeriesResponse;
+import com.sambath.admincafe.report.dto.SalesLineItemResponse;
+import com.sambath.admincafe.report.dto.SalesReportResponse;
 import com.sambath.admincafe.report.dto.TopProductResponse;
 import com.sambath.admincafe.transaction.TransactionRepository;
 import lombok.RequiredArgsConstructor;
@@ -147,6 +149,38 @@ public class ReportService {
                 topCat.name(),
                 topCat.sharePct(),
                 staffEff
+        );
+    }
+
+    public SalesReportResponse salesReport(ReportRange range, String salesPerson) {
+        Window w = currentWindow(range);
+        String filter = (salesPerson == null || salesPerson.isBlank()) ? null : salesPerson;
+
+        List<SalesLineItemResponse> items = orderRepository
+                .findSalesLineItems(w.start, w.end, filter)
+                .stream()
+                .map(row -> new SalesLineItemResponse(
+                        row[0] == null ? "-" : "P-" + ((Number) row[0]).longValue(),
+                        (String) row[1],
+                        (String) row[2],
+                        scale2(asBigDecimal(row[5])),
+                        ((Number) row[3]).longValue(),
+                        scale2(asBigDecimal(row[4]))
+                ))
+                .toList();
+
+        BigDecimal salesTotal = items.stream()
+                .map(SalesLineItemResponse::total)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        return new SalesReportResponse(
+                range.displayName(),
+                LocalDate.ofInstant(w.start, ZONE).toString(),
+                LocalDate.ofInstant(w.end, ZONE).toString(),
+                filter == null ? "All Staff" : filter,
+                salesTotal,
+                items
         );
     }
 

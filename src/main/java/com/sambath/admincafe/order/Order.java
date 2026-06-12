@@ -74,9 +74,6 @@ public class Order {
     private BigDecimal subtotal;
 
     @Column(precision = 10, scale = 2)
-    private BigDecimal tax;
-
-    @Column(precision = 10, scale = 2)
     private BigDecimal total;
 
     private String kitchenNote;

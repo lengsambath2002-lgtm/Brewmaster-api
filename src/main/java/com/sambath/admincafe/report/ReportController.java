@@ -3,6 +3,7 @@ package com.sambath.admincafe.report;
 import com.sambath.admincafe.report.dto.ReportKpisResponse;
 import com.sambath.admincafe.report.dto.ReportSummaryResponse;
 import com.sambath.admincafe.report.dto.RevenueSeriesResponse;
+import com.sambath.admincafe.report.dto.SalesReportResponse;
 import com.sambath.admincafe.report.dto.TopProductResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -49,6 +50,14 @@ public class ReportController {
     @GetMapping("/kpis")
     public ReportKpisResponse kpis(@RequestParam(required = false) String range) {
         return reportService.kpis(ReportRange.parse(range, ReportRange.MONTHLY));
+    }
+
+    @GetMapping("/sales-report")
+    public SalesReportResponse salesReport(
+            @RequestParam(required = false) String range,
+            @RequestParam(required = false) String salesPerson
+    ) {
+        return reportService.salesReport(ReportRange.parse(range, ReportRange.DAILY), salesPerson);
     }
 
     @GetMapping("/export")

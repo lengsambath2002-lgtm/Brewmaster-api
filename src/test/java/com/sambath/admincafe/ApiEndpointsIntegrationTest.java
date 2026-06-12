@@ -112,8 +112,7 @@ class ApiEndpointsIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.kitchenNote").value("Sugar 50%"))
                 .andExpect(jsonPath("$.subtotal").value(9.00))
-                .andExpect(jsonPath("$.tax").value(0.72))
-                .andExpect(jsonPath("$.total").value(9.72));
+                .andExpect(jsonPath("$.total").value(9.00));
 
         // Mark Completed → creates a transaction
         MvcResult statusRes = mvc.perform(patch("/api/orders/" + orderId + "/status")

@@ -34,7 +34,6 @@ public class OrderMapper {
                 o.getServer(),
                 items,
                 o.getSubtotal(),
-                o.getTax(),
                 o.getTotal(),
                 o.getKitchenNote(),
                 o.getPaymentStatus() != null ? o.getPaymentStatus().name() : null,

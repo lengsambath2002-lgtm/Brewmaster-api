@@ -75,4 +75,25 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             """, nativeQuery = true)
     List<Object[]> findCategoryAggregates(@Param("start") Instant start,
                                           @Param("end") Instant end);
+
+    @Query(value = """
+            SELECT p.id AS product_id,
+                   oi.product_name AS product_name,
+                   COALESCE(p.category, '-') AS category,
+                   SUM(oi.quantity) AS units_sold,
+                   SUM(oi.price_order) AS revenue,
+                   CASE WHEN SUM(oi.quantity) > 0
+                        THEN SUM(oi.price_order) / SUM(oi.quantity)
+                        ELSE 0 END AS unit_price
+            FROM order_items oi
+            JOIN orders o ON oi.order_id = o.id
+            LEFT JOIN products p ON p.name = oi.product_name
+            WHERE o.created_at >= :start AND o.created_at < :end
+              AND (:salesPerson IS NULL OR o.server = :salesPerson)
+            GROUP BY p.id, oi.product_name, p.category
+            ORDER BY SUM(oi.price_order) DESC
+            """, nativeQuery = true)
+    List<Object[]> findSalesLineItems(@Param("start") Instant start,
+                                      @Param("end") Instant end,
+                                      @Param("salesPerson") String salesPerson);
 }

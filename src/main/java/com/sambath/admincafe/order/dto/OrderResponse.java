@@ -17,7 +17,6 @@ public record OrderResponse(
         String server,
         List<OrderItemResponse> items,
         BigDecimal subtotal,
-        BigDecimal tax,
         BigDecimal total,
         String kitchenNote,
         String paymentStatus,
