@@ -332,26 +332,27 @@ public class ReportService {
         }
     }
 
+    // CSV export of the Daily Sales Report (tax-free), mirroring the Excel
+    // template: a small header block, the line-item table, then the sales total.
     public byte[] exportCsv(ReportRange range) {
-        ReportSummaryResponse summary = summary(range);
-        ReportKpisResponse kpis = kpis(range);
+        SalesReportResponse report = salesReport(range, null);
         StringBuilder sb = new StringBuilder();
-        sb.append("Metric,Value\n");
-        sb.append("Range,").append(summary.range()).append('\n');
-        sb.append("Total Revenue,").append(summary.totalRevenue()).append('\n');
-        sb.append("Revenue Growth %,").append(summary.revenueGrowthPct()).append('\n');
-        sb.append("Total Orders,").append(summary.totalOrders()).append('\n');
-        sb.append("Orders Growth %,").append(summary.ordersGrowthPct()).append('\n');
-        sb.append("Active Orders,").append(summary.activeOrders()).append('\n');
-        sb.append("Top Selling Product,").append(csvSafe(summary.topSellingProduct().name())).append('\n');
-        sb.append("Top Product Units,").append(summary.topSellingProduct().unitsSold()).append('\n');
-        sb.append("Top Category,").append(csvSafe(summary.topCategory().name())).append('\n');
-        sb.append("Top Category Share %,").append(summary.topCategory().sharePct()).append('\n');
-        sb.append("Avg Order Value,").append(kpis.avgOrderValue()).append('\n');
-        sb.append("AOV Growth %,").append(kpis.avgOrderValueGrowthPct()).append('\n');
-        sb.append("New Customers,").append(kpis.newCustomers()).append('\n');
-        sb.append("New Customers Growth %,").append(kpis.newCustomersGrowthPct()).append('\n');
-        sb.append("Staff Efficiency (min),").append(kpis.staffEfficiencyMinutes()).append('\n');
+        sb.append("Daily Sales Report\n");
+        sb.append("Range,").append(csvSafe(report.range())).append('\n');
+        sb.append("Period,").append(report.periodStart()).append(" to ").append(report.periodEnd()).append('\n');
+        sb.append("Sales Person,").append(csvSafe(report.salesPerson())).append('\n');
+        sb.append('\n');
+        sb.append("ITEM NO,ITEM NAME,ITEM DESCRIPTION,PRICE,QTY,TOTAL\n");
+        for (SalesLineItemResponse item : report.lineItems()) {
+            sb.append(csvSafe(item.itemNo())).append(',')
+              .append(csvSafe(item.itemName())).append(',')
+              .append(csvSafe(item.itemDescription())).append(',')
+              .append(item.price()).append(',')
+              .append(item.quantity()).append(',')
+              .append(item.total()).append('\n');
+        }
+        sb.append('\n');
+        sb.append("SALES TOTAL,,,,,").append(report.salesTotal()).append('\n');
         return sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
     }
 
