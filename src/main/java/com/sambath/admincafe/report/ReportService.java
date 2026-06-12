@@ -14,12 +14,18 @@ import com.sambath.admincafe.report.dto.SalesReportResponse;
 import com.sambath.admincafe.report.dto.TopProductResponse;
 import com.sambath.admincafe.transaction.TransactionRepository;
 import lombok.RequiredArgsConstructor;
+import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.VerticalAlignment;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -354,6 +360,160 @@ public class ReportService {
         sb.append('\n');
         sb.append("SALES TOTAL,,,,,").append(report.salesTotal()).append('\n');
         return sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    // Professionally-styled single-sheet XLSX of the Daily Sales Report: a brand
+    // title banner, a meta block (range / period / sales person), a coloured
+    // table header with bordered line items, and a highlighted sales-total row.
+    public byte[] exportSalesReportXlsx(ReportRange range) {
+        SalesReportResponse report = salesReport(range, null);
+
+        try (Workbook wb = new XSSFWorkbook();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            Sheet s = wb.createSheet("Daily Sales Report");
+            int[] widths = {14, 32, 24, 13, 9, 15};
+            for (int c = 0; c < widths.length; c++) {
+                s.setColumnWidth(c, widths[c] * 256);
+            }
+
+            CellStyle titleStyle = wb.createCellStyle();
+            Font titleFont = wb.createFont();
+            titleFont.setBold(true);
+            titleFont.setColor(IndexedColors.WHITE.getIndex());
+            titleFont.setFontHeightInPoints((short) 16);
+            titleStyle.setFont(titleFont);
+            titleStyle.setFillForegroundColor(IndexedColors.DARK_TEAL.getIndex());
+            titleStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            titleStyle.setAlignment(HorizontalAlignment.CENTER);
+            titleStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+
+            CellStyle labelStyle = wb.createCellStyle();
+            Font labelFont = wb.createFont();
+            labelFont.setBold(true);
+            labelStyle.setFont(labelFont);
+
+            CellStyle headStyle = wb.createCellStyle();
+            Font headFont = wb.createFont();
+            headFont.setBold(true);
+            headFont.setColor(IndexedColors.WHITE.getIndex());
+            headStyle.setFont(headFont);
+            headStyle.setFillForegroundColor(IndexedColors.TEAL.getIndex());
+            headStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            headStyle.setAlignment(HorizontalAlignment.CENTER);
+            headStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+            applyThinBorder(headStyle);
+
+            CellStyle textStyle = wb.createCellStyle();
+            textStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+            applyThinBorder(textStyle);
+
+            CellStyle moneyStyle = wb.createCellStyle();
+            moneyStyle.setDataFormat(wb.createDataFormat().getFormat("$#,##0.00"));
+            moneyStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+            applyThinBorder(moneyStyle);
+
+            CellStyle qtyStyle = wb.createCellStyle();
+            qtyStyle.setDataFormat(wb.createDataFormat().getFormat("#,##0"));
+            qtyStyle.setAlignment(HorizontalAlignment.CENTER);
+            qtyStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+            applyThinBorder(qtyStyle);
+
+            Font totalFont = wb.createFont();
+            totalFont.setBold(true);
+            CellStyle totalLabelStyle = wb.createCellStyle();
+            totalLabelStyle.setFont(totalFont);
+            totalLabelStyle.setAlignment(HorizontalAlignment.RIGHT);
+            totalLabelStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+            totalLabelStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            applyThinBorder(totalLabelStyle);
+
+            CellStyle totalMoneyStyle = wb.createCellStyle();
+            totalMoneyStyle.setFont(totalFont);
+            totalMoneyStyle.setDataFormat(wb.createDataFormat().getFormat("$#,##0.00"));
+            totalMoneyStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+            totalMoneyStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            applyThinBorder(totalMoneyStyle);
+
+            int r = 0;
+            Row titleRow = s.createRow(r);
+            titleRow.setHeightInPoints(26);
+            for (int c = 0; c <= 5; c++) {
+                titleRow.createCell(c).setCellStyle(titleStyle);
+            }
+            titleRow.getCell(0).setCellValue("DAILY SALES REPORT");
+            s.addMergedRegion(new CellRangeAddress(r, r, 0, 5));
+            r += 2; // title + spacer
+
+            r = metaRow(s, r, labelStyle, "Range", report.range());
+            r = metaRow(s, r, labelStyle, "Period", report.periodStart() + " to " + report.periodEnd());
+            r = metaRow(s, r, labelStyle, "Sales Person", report.salesPerson());
+            r++; // spacer
+
+            int headerRow = r;
+            Row head = s.createRow(r++);
+            String[] cols = {"ITEM NO", "ITEM NAME", "ITEM DESCRIPTION", "PRICE", "QTY", "TOTAL"};
+            for (int c = 0; c < cols.length; c++) {
+                Cell cell = head.createCell(c);
+                cell.setCellValue(cols[c]);
+                cell.setCellStyle(headStyle);
+            }
+
+            for (SalesLineItemResponse item : report.lineItems()) {
+                Row row = s.createRow(r++);
+                cell(row, 0, item.itemNo(), textStyle);
+                cell(row, 1, item.itemName(), textStyle);
+                cell(row, 2, item.itemDescription(), textStyle);
+                Cell price = row.createCell(3);
+                price.setCellValue(item.price() == null ? 0 : item.price().doubleValue());
+                price.setCellStyle(moneyStyle);
+                Cell qty = row.createCell(4);
+                qty.setCellValue(item.quantity());
+                qty.setCellStyle(qtyStyle);
+                Cell total = row.createCell(5);
+                total.setCellValue(item.total() == null ? 0 : item.total().doubleValue());
+                total.setCellStyle(moneyStyle);
+            }
+
+            Row totalRow = s.createRow(r);
+            for (int c = 0; c <= 4; c++) {
+                totalRow.createCell(c).setCellStyle(totalLabelStyle);
+            }
+            totalRow.getCell(0).setCellValue("SALES TOTAL");
+            s.addMergedRegion(new CellRangeAddress(r, r, 0, 4));
+            Cell totalVal = totalRow.createCell(5);
+            totalVal.setCellValue(report.salesTotal() == null ? 0 : report.salesTotal().doubleValue());
+            totalVal.setCellStyle(totalMoneyStyle);
+
+            s.createFreezePane(0, headerRow + 1);
+
+            wb.write(out);
+            return out.toByteArray();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to build sales report xlsx", e);
+        }
+    }
+
+    private static void cell(Row row, int col, String value, CellStyle style) {
+        Cell c = row.createCell(col);
+        c.setCellValue(value == null ? "" : value);
+        c.setCellStyle(style);
+    }
+
+    private static int metaRow(Sheet s, int rowIdx, CellStyle labelStyle, String label, String value) {
+        Row row = s.createRow(rowIdx);
+        Cell l = row.createCell(0);
+        l.setCellValue(label);
+        l.setCellStyle(labelStyle);
+        row.createCell(1).setCellValue(value == null ? "" : value);
+        return rowIdx + 1;
+    }
+
+    private static void applyThinBorder(CellStyle style) {
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
     }
 
     private RevenuePointResponse dailyPoint(LocalDate d, DateTimeFormatter labelFmt) {

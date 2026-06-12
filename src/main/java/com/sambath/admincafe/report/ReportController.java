@@ -77,8 +77,18 @@ public class ReportController {
         }
 
         if ("xlsx".equalsIgnoreCase(format) || "excel".equalsIgnoreCase(format)) {
+            byte[] body = reportService.exportSalesReportXlsx(r);
+            String filename = "sales-report-" + r.displayName() + "-" + LocalDate.now() + ".xlsx";
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                    .body(body);
+        }
+
+        if ("analytics".equalsIgnoreCase(format)) {
             byte[] body = reportService.exportXlsx(r);
-            String filename = "report-" + r.displayName() + "-" + LocalDate.now() + ".xlsx";
+            String filename = "report-analytics-" + r.displayName() + "-" + LocalDate.now() + ".xlsx";
             return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType(
                             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
