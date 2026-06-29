@@ -13,6 +13,10 @@ import com.sambath.admincafe.khqr.dto.VerifyResponse;
 import com.sambath.admincafe.order.Order;
 import com.sambath.admincafe.order.OrderRepository;
 import com.sambath.admincafe.order.PaymentStatus;
+import com.sambath.admincafe.tenant.Tenant;
+import com.sambath.admincafe.tenant.TenantContext;
+import com.sambath.admincafe.tenant.TenantKhqrSettings;
+import com.sambath.admincafe.tenant.TenantRepository;
 import kh.gov.nbc.bakong_khqr.BakongKHQR;
 import kh.gov.nbc.bakong_khqr.model.CRCValidation;
 import kh.gov.nbc.bakong_khqr.model.IndividualInfo;
@@ -45,52 +49,55 @@ public class KhqrService {
 
     private final KhqrProperties properties;
     private final OrderRepository orderRepository;
+    private final TenantRepository tenantRepository;
     private final RestClient restClient = RestClient.create();
 
     public KhqrResponse generateIndividual(GenerateIndividualRequest request) {
+        TenantKhqrSettings s = currentSettings();
         IndividualInfo info = new IndividualInfo();
-        info.setBakongAccountId(request.bakongAccountId());
-        info.setMerchantName(request.merchantName());
-        info.setMerchantCity(orDefault(request.merchantCity(), properties.getMerchantCity()));
+        info.setBakongAccountId(orDefault(request.bakongAccountId(), s.getBakongAccountId()));
+        info.setMerchantName(orDefault(request.merchantName(), s.getMerchantName()));
+        info.setMerchantCity(orDefault(request.merchantCity(), s.getMerchantCity()));
         info.setAccountInformation(request.accountInformation());
-        info.setAcquiringBank(orDefault(request.acquiringBank(), properties.getAcquiringBank()));
-        info.setCurrency(parseCurrency(orDefault(request.currency(), properties.getCurrency())));
+        info.setAcquiringBank(orDefault(request.acquiringBank(), s.getAcquiringBank()));
+        info.setCurrency(parseCurrency(orDefault(request.currency(), s.getCurrency())));
         info.setAmount(roundAmount(request.amount()));
         info.setBillNumber(request.billNumber());
-        info.setMobileNumber(orDefault(request.mobileNumber(), properties.getMobileNumber()));
-        info.setStoreLabel(orDefault(request.storeLabel(), properties.getStoreLabel()));
-        info.setTerminalLabel(orDefault(request.terminalLabel(), properties.getTerminalLabel()));
+        info.setMobileNumber(orDefault(request.mobileNumber(), s.getMobileNumber()));
+        info.setStoreLabel(orDefault(request.storeLabel(), s.getStoreLabel()));
+        info.setTerminalLabel(orDefault(request.terminalLabel(), s.getTerminalLabel()));
         info.setPurposeOfTransaction(request.purposeOfTransaction());
         info.setUpiAccountInformation(request.upiAccountInformation());
         info.setMerchantAlternateLanguagePreference(request.merchantAlternateLanguagePreference());
         info.setMerchantNameAlternateLanguage(request.merchantNameAlternateLanguage());
         info.setMerchantCityAlternateLanguage(request.merchantCityAlternateLanguage());
         info.setExpirationTimestamp(resolveExpiration(request.expirationTimestamp(), request.amount()));
-        info.setMerchantCategoryCode(orDefault(request.merchantCategoryCode(), properties.getMerchantCategoryCode()));
+        info.setMerchantCategoryCode(orDefault(request.merchantCategoryCode(), s.getMerchantCategoryCode()));
 
         return toKhqrResponse(unwrap(BakongKHQR.generateIndividual(info)));
     }
 
     public KhqrResponse generateMerchant(GenerateMerchantRequest request) {
+        TenantKhqrSettings s = currentSettings();
         MerchantInfo info = new MerchantInfo();
-        info.setBakongAccountId(request.bakongAccountId());
-        info.setMerchantId(request.merchantId());
-        info.setAcquiringBank(request.acquiringBank());
-        info.setMerchantName(request.merchantName());
-        info.setMerchantCity(orDefault(request.merchantCity(), properties.getMerchantCity()));
-        info.setCurrency(parseCurrency(orDefault(request.currency(), properties.getCurrency())));
+        info.setBakongAccountId(orDefault(request.bakongAccountId(), s.getBakongAccountId()));
+        info.setMerchantId(orDefault(request.merchantId(), s.getMerchantId()));
+        info.setAcquiringBank(orDefault(request.acquiringBank(), s.getAcquiringBank()));
+        info.setMerchantName(orDefault(request.merchantName(), s.getMerchantName()));
+        info.setMerchantCity(orDefault(request.merchantCity(), s.getMerchantCity()));
+        info.setCurrency(parseCurrency(orDefault(request.currency(), s.getCurrency())));
         info.setAmount(roundAmount(request.amount()));
         info.setBillNumber(request.billNumber());
-        info.setMobileNumber(orDefault(request.mobileNumber(), properties.getMobileNumber()));
-        info.setStoreLabel(orDefault(request.storeLabel(), properties.getStoreLabel()));
-        info.setTerminalLabel(orDefault(request.terminalLabel(), properties.getTerminalLabel()));
+        info.setMobileNumber(orDefault(request.mobileNumber(), s.getMobileNumber()));
+        info.setStoreLabel(orDefault(request.storeLabel(), s.getStoreLabel()));
+        info.setTerminalLabel(orDefault(request.terminalLabel(), s.getTerminalLabel()));
         info.setPurposeOfTransaction(request.purposeOfTransaction());
         info.setUpiAccountInformation(request.upiAccountInformation());
         info.setMerchantAlternateLanguagePreference(request.merchantAlternateLanguagePreference());
         info.setMerchantNameAlternateLanguage(request.merchantNameAlternateLanguage());
         info.setMerchantCityAlternateLanguage(request.merchantCityAlternateLanguage());
         info.setExpirationTimestamp(resolveExpiration(request.expirationTimestamp(), request.amount()));
-        info.setMerchantCategoryCode(orDefault(request.merchantCategoryCode(), properties.getMerchantCategoryCode()));
+        info.setMerchantCategoryCode(orDefault(request.merchantCategoryCode(), s.getMerchantCategoryCode()));
 
         return toKhqrResponse(unwrap(BakongKHQR.generateMerchant(info)));
     }
@@ -98,6 +105,8 @@ public class KhqrService {
     public KhqrResponse generateForOrder(Long orderId, OrderKhqrRequest request) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("Order not found: " + orderId));
+
+        TenantKhqrSettings s = currentSettings();
 
         BigDecimal total = order.getTotal();
         Double amount = request != null && request.amount() != null
@@ -110,47 +119,47 @@ public class KhqrService {
 
         String currency = request != null && request.currency() != null
                 ? request.currency()
-                : properties.getCurrency();
+                : s.getCurrency();
 
         Long expiration = request != null && request.expirationTimestamp() != null
                 ? request.expirationTimestamp()
                 : null;
 
-        String merchantId = properties.getMerchantId();
+        String merchantId = s.getMerchantId();
         KhqrResponse generated;
         if (merchantId != null && !merchantId.isBlank()) {
             generated = generateMerchant(new GenerateMerchantRequest(
-                    properties.getBakongAccountId(),
+                    s.getBakongAccountId(),
                     merchantId,
-                    properties.getAcquiringBank(),
-                    properties.getMerchantName(),
-                    properties.getMerchantCity(),
+                    s.getAcquiringBank(),
+                    s.getMerchantName(),
+                    s.getMerchantCity(),
                     currency,
                     amount,
                     billNumber,
-                    properties.getMobileNumber(),
-                    properties.getStoreLabel(),
-                    properties.getTerminalLabel(),
+                    s.getMobileNumber(),
+                    s.getStoreLabel(),
+                    s.getTerminalLabel(),
                     null, null, null, null, null,
                     expiration,
-                    properties.getMerchantCategoryCode()
+                    s.getMerchantCategoryCode()
             ));
         } else {
             generated = generateIndividual(new GenerateIndividualRequest(
-                    properties.getBakongAccountId(),
-                    properties.getMerchantName(),
-                    properties.getMerchantCity(),
-                    properties.getAcquiringBank(),
+                    s.getBakongAccountId(),
+                    s.getMerchantName(),
+                    s.getMerchantCity(),
+                    s.getAcquiringBank(),
                     null,
                     currency,
                     amount,
                     billNumber,
-                    properties.getMobileNumber(),
-                    properties.getStoreLabel(),
-                    properties.getTerminalLabel(),
+                    s.getMobileNumber(),
+                    s.getStoreLabel(),
+                    s.getTerminalLabel(),
                     null, null, null, null, null,
                     expiration,
-                    properties.getMerchantCategoryCode()
+                    s.getMerchantCategoryCode()
             ));
         }
 
@@ -267,6 +276,17 @@ public class KhqrService {
 
         KHQRDeepLinkData data = unwrap(BakongKHQR.generateDeepLink(url, request.qr(), source));
         return new DeeplinkResponse(data.getShortLink());
+    }
+
+    // The KHQR merchant identity is per-tenant: each café has its own Bakong
+    // account / merchant id / store label. Bakong API base URL + dev token stay
+    // global (KhqrProperties) — those are infra credentials, not merchant data.
+    private TenantKhqrSettings currentSettings() {
+        Long tenantId = TenantContext.require();
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new NotFoundException("Tenant not found: " + tenantId));
+        TenantKhqrSettings s = tenant.getKhqr();
+        return s == null ? new TenantKhqrSettings() : s;
     }
 
     private void markOrderPaid(Order order) {

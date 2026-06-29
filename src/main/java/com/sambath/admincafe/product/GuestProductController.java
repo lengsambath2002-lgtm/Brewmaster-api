@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/guest/products")
+@RequestMapping("/api/guest/t/{slug}/products")
 @RequiredArgsConstructor
 public class GuestProductController {
 

@@ -52,13 +52,15 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
                    SUM(oi.price_order) AS revenue
             FROM order_items oi
             JOIN orders o ON oi.order_id = o.id
-            LEFT JOIN products p ON p.name = oi.product_name
-            WHERE o.created_at >= :start AND o.created_at < :end
+            LEFT JOIN products p ON p.name = oi.product_name AND p.tenant_id = :tenantId
+            WHERE o.tenant_id = :tenantId
+              AND o.created_at >= :start AND o.created_at < :end
             GROUP BY oi.product_name, p.category
             ORDER BY SUM(oi.quantity) DESC
             LIMIT :limit
             """, nativeQuery = true)
-    List<Object[]> findTopProducts(@Param("start") Instant start,
+    List<Object[]> findTopProducts(@Param("tenantId") Long tenantId,
+                                   @Param("start") Instant start,
                                    @Param("end") Instant end,
                                    @Param("limit") int limit);
 
@@ -68,12 +70,14 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
                    SUM(oi.price_order) AS revenue
             FROM order_items oi
             JOIN orders o ON oi.order_id = o.id
-            LEFT JOIN products p ON p.name = oi.product_name
-            WHERE o.created_at >= :start AND o.created_at < :end
+            LEFT JOIN products p ON p.name = oi.product_name AND p.tenant_id = :tenantId
+            WHERE o.tenant_id = :tenantId
+              AND o.created_at >= :start AND o.created_at < :end
             GROUP BY p.category
             ORDER BY SUM(oi.price_order) DESC
             """, nativeQuery = true)
-    List<Object[]> findCategoryAggregates(@Param("start") Instant start,
+    List<Object[]> findCategoryAggregates(@Param("tenantId") Long tenantId,
+                                          @Param("start") Instant start,
                                           @Param("end") Instant end);
 
     @Query(value = """
@@ -87,13 +91,15 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
                         ELSE 0 END AS unit_price
             FROM order_items oi
             JOIN orders o ON oi.order_id = o.id
-            LEFT JOIN products p ON p.name = oi.product_name
-            WHERE o.created_at >= :start AND o.created_at < :end
+            LEFT JOIN products p ON p.name = oi.product_name AND p.tenant_id = :tenantId
+            WHERE o.tenant_id = :tenantId
+              AND o.created_at >= :start AND o.created_at < :end
               AND (:salesPerson IS NULL OR o.server = :salesPerson)
             GROUP BY p.id, oi.product_name, p.category
             ORDER BY SUM(oi.price_order) DESC
             """, nativeQuery = true)
-    List<Object[]> findSalesLineItems(@Param("start") Instant start,
+    List<Object[]> findSalesLineItems(@Param("tenantId") Long tenantId,
+                                      @Param("start") Instant start,
                                       @Param("end") Instant end,
                                       @Param("salesPerson") String salesPerson);
 }

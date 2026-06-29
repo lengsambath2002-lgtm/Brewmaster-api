@@ -2,6 +2,7 @@ package com.sambath.admincafe.auth;
 
 import com.sambath.admincafe.auth.dto.AuthUser;
 import com.sambath.admincafe.common.UnauthorizedException;
+import com.sambath.admincafe.tenant.TenantContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,12 @@ public class AuthInterceptor implements HandlerInterceptor {
                 .orElseThrow(() -> new UnauthorizedException("Invalid or expired token."));
         request.setAttribute(USER_ATTR, user);
         request.setAttribute(TOKEN_ATTR, token);
+        TenantContext.set(user.tenantId());
         return true;
+    }
+
+    @Override
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
+        TenantContext.clear();
     }
 }

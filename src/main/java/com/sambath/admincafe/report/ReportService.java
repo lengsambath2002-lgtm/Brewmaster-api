@@ -12,6 +12,7 @@ import com.sambath.admincafe.report.dto.RevenueSeriesResponse;
 import com.sambath.admincafe.report.dto.SalesLineItemResponse;
 import com.sambath.admincafe.report.dto.SalesReportResponse;
 import com.sambath.admincafe.report.dto.TopProductResponse;
+import com.sambath.admincafe.tenant.TenantContext;
 import com.sambath.admincafe.transaction.TransactionRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.BorderStyle;
@@ -124,7 +125,7 @@ public class ReportService {
 
     public List<TopProductResponse> topProducts(ReportRange range, int limit) {
         Window w = currentWindow(range);
-        return orderRepository.findTopProducts(w.start, w.end, limit).stream()
+        return orderRepository.findTopProducts(TenantContext.require(), w.start, w.end, limit).stream()
                 .map(row -> new TopProductResponse(
                         (String) row[0],
                         (String) row[1],
@@ -163,7 +164,7 @@ public class ReportService {
         String filter = (salesPerson == null || salesPerson.isBlank()) ? null : salesPerson;
 
         List<SalesLineItemResponse> items = orderRepository
-                .findSalesLineItems(w.start, w.end, filter)
+                .findSalesLineItems(TenantContext.require(), w.start, w.end, filter)
                 .stream()
                 .map(row -> new SalesLineItemResponse(
                         row[0] == null ? "-" : "P-" + ((Number) row[0]).longValue(),
@@ -524,7 +525,7 @@ public class ReportService {
     }
 
     private NamedCountResponse topSellingProduct(Instant start, Instant end) {
-        List<Object[]> rows = orderRepository.findTopProducts(start, end, 1);
+        List<Object[]> rows = orderRepository.findTopProducts(TenantContext.require(), start, end, 1);
         if (rows.isEmpty()) {
             return new NamedCountResponse("—", 0);
         }
@@ -533,7 +534,7 @@ public class ReportService {
     }
 
     private CategoryShareResponse topCategoryShare(Instant start, Instant end) {
-        List<Object[]> rows = orderRepository.findCategoryAggregates(start, end);
+        List<Object[]> rows = orderRepository.findCategoryAggregates(TenantContext.require(), start, end);
         if (rows.isEmpty()) {
             return new CategoryShareResponse("—", BigDecimal.ZERO);
         }

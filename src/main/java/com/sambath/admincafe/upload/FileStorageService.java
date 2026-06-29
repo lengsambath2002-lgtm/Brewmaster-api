@@ -1,5 +1,6 @@
 package com.sambath.admincafe.upload;
 
+import com.sambath.admincafe.tenant.TenantContext;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -40,7 +41,7 @@ public class FileStorageService {
         }
 
         String ext = resolveExtension(file);
-        String key = UUID.randomUUID() + ext;
+        String key = "t/" + TenantContext.require() + "/" + UUID.randomUUID() + ext;
 
         try {
             s3.putObject(
@@ -63,10 +64,13 @@ public class FileStorageService {
         if (filename == null || filename.contains("/") || filename.contains("\\") || filename.contains("..")) {
             return false;
         }
+        // The leaf filename arrives from the client; the tenant prefix comes from
+        // TenantContext so one tenant can never reference another tenant's keys.
+        String key = "t/" + TenantContext.require() + "/" + filename;
         try {
             s3.deleteObject(DeleteObjectRequest.builder()
                     .bucket(props.getS3().getBucket())
-                    .key(filename)
+                    .key(key)
                     .build());
             return true;
         } catch (NoSuchKeyException e) {

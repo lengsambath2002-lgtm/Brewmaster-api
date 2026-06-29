@@ -15,6 +15,7 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.TenantId;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -25,11 +26,11 @@ import java.util.List;
 @Entity
 @Table(name = "orders",
         uniqueConstraints = @UniqueConstraint(
-                name = "uk_orders_date_daily_number",
-                columnNames = {"order_date", "daily_number"}),
+                name = "uk_orders_tenant_date_daily_number",
+                columnNames = {"tenant_id", "order_date", "daily_number"}),
         indexes = {
-                @Index(name = "idx_orders_payment_status_created_at",
-                        columnList = "payment_status, created_at")
+                @Index(name = "idx_orders_tenant_payment_status_created_at",
+                        columnList = "tenant_id, payment_status, created_at")
         })
 @Getter
 @Setter
@@ -39,6 +40,10 @@ public class Order {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @TenantId
+    @Column(name = "tenant_id")
+    private Long tenantId;
 
     private LocalDate orderDate;
 
