@@ -27,6 +27,6 @@ public class WebMvcAuthConfig implements WebMvcConfigurer {
                 );
 
         registry.addInterceptor(guestTenantInterceptor)
-                .addPathPatterns("/api/guest/t/*/**");
+                .addPathPatterns("/api/guest/**");
     }
 }

@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/guest/t/{slug}/orders")
+@RequestMapping("/api/guest/orders")
 @RequiredArgsConstructor
 public class GuestOrderController {
 

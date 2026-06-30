@@ -165,7 +165,7 @@ class ApiEndpointsIntegrationTest {
                 .andExpect(status().isNotFound());
 
         // Guest order — no token required
-        MvcResult guestRes = mvc.perform(post("/api/guest/t/default/orders")
+        MvcResult guestRes = mvc.perform(post("/api/guest/orders")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {
@@ -208,7 +208,7 @@ class ApiEndpointsIntegrationTest {
                 .andExpect(status().isUnauthorized());
 
         // Guest endpoint still works after logout
-        mvc.perform(post("/api/guest/t/default/orders")
+        mvc.perform(post("/api/guest/orders")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {

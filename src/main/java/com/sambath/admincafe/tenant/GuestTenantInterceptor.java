@@ -7,16 +7,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 @Component
 @RequiredArgsConstructor
 public class GuestTenantInterceptor implements HandlerInterceptor {
 
     public static final String TENANT_ATTR = "tenant.current";
 
-    private static final Pattern SLUG_PATTERN = Pattern.compile("^/api/guest/t/([^/]+)(/.*)?$");
+    private static final String DEFAULT_SLUG = "default";
 
     private final TenantRepository tenantRepository;
 
@@ -25,15 +22,9 @@ public class GuestTenantInterceptor implements HandlerInterceptor {
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             return true;
         }
-        String path = request.getRequestURI();
-        Matcher m = SLUG_PATTERN.matcher(path);
-        if (!m.matches()) {
-            throw new NotFoundException("Tenant not specified in path.");
-        }
-        String slug = m.group(1);
-        Tenant tenant = tenantRepository.findBySlug(slug)
+        Tenant tenant = tenantRepository.findBySlug(DEFAULT_SLUG)
                 .filter(Tenant::isActive)
-                .orElseThrow(() -> new NotFoundException("Unknown tenant: " + slug));
+                .orElseThrow(() -> new NotFoundException("Default tenant not configured."));
         request.setAttribute(TENANT_ATTR, tenant);
         TenantContext.set(tenant.getId());
         return true;

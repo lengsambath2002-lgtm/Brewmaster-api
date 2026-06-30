@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/guest/t/{slug}/khqr")
+@RequestMapping("/api/guest/khqr")
 @RequiredArgsConstructor
 public class GuestKhqrController {
 
