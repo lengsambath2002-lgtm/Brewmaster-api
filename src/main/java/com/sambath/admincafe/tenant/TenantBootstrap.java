@@ -70,17 +70,30 @@ public class TenantBootstrap {
             ensureOrdersUniqueConstraint();
         }
 
-        // Hibernate ddl-auto=update adds tenant_id columns as nullable. Existing
-        // rows (legacy single-tenant data) need to be attributed to the default
-        // tenant before @TenantId filtering hides them.
+        // ddl-auto=update is supposed to add tenant_id as nullable, but on managed
+        // Postgres (Supabase/Render) it sometimes silently skips the ALTER when the
+        // table predates the multi-tenant migration. Add the column defensively,
+        // then backfill legacy rows with the default tenant.
         private void backfillTenantIds(Long defaultTenantId) {
             for (String table : new String[]{"products", "categories", "orders", "transactions"}) {
-                int updated = em.createNativeQuery(
-                                "UPDATE " + table + " SET tenant_id = :id WHERE tenant_id IS NULL")
-                        .setParameter("id", defaultTenantId)
-                        .executeUpdate();
-                if (updated > 0) {
-                    log.info("Backfilled {} {} rows to tenant_id={}", updated, table, defaultTenantId);
+                try {
+                    em.createNativeQuery(
+                                    "ALTER TABLE " + table + " ADD COLUMN IF NOT EXISTS tenant_id BIGINT")
+                            .executeUpdate();
+                } catch (Exception e) {
+                    log.warn("Could not ensure tenant_id column on {}: {}", table, e.getMessage());
+                    continue;
+                }
+                try {
+                    int updated = em.createNativeQuery(
+                                    "UPDATE " + table + " SET tenant_id = :id WHERE tenant_id IS NULL")
+                            .setParameter("id", defaultTenantId)
+                            .executeUpdate();
+                    if (updated > 0) {
+                        log.info("Backfilled {} {} rows to tenant_id={}", updated, table, defaultTenantId);
+                    }
+                } catch (Exception e) {
+                    log.warn("Could not backfill tenant_id on {}: {}", table, e.getMessage());
                 }
             }
         }
