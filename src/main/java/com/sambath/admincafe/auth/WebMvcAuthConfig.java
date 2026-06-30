@@ -1,5 +1,6 @@
 package com.sambath.admincafe.auth;
 
+import com.sambath.admincafe.superadmin.SuperAdminInterceptor;
 import com.sambath.admincafe.tenant.GuestTenantInterceptor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
@@ -12,6 +13,7 @@ public class WebMvcAuthConfig implements WebMvcConfigurer {
 
     private final AuthInterceptor authInterceptor;
     private final GuestTenantInterceptor guestTenantInterceptor;
+    private final SuperAdminInterceptor superAdminInterceptor;
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
@@ -25,6 +27,9 @@ public class WebMvcAuthConfig implements WebMvcConfigurer {
                         "/swagger-ui/**",
                         "/swagger-ui.html"
                 );
+
+        registry.addInterceptor(superAdminInterceptor)
+                .addPathPatterns("/api/superadmin/**");
 
         registry.addInterceptor(guestTenantInterceptor)
                 .addPathPatterns("/api/guest/**");

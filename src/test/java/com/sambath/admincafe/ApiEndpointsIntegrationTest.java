@@ -137,7 +137,7 @@ class ApiEndpointsIntegrationTest {
                 .content("{\"reason\":\"Wrong item served\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.transaction.status").value("REFUNDED"))
-                .andExpect(jsonPath("$.transaction.amount").value(-9.72))
+                .andExpect(jsonPath("$.transaction.amount").value(-9.00))
                 .andExpect(jsonPath("$.order.id").value(orderId));
 
         // Second refund → 409

@@ -38,6 +38,12 @@ public class GlobalExceptionHandler {
                 .body(new ApiError(ex.getMessage(), "UNAUTHORIZED"));
     }
 
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ApiError> handleForbidden(ForbiddenException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ApiError(ex.getMessage(), "FORBIDDEN"));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult().getFieldErrors().stream()

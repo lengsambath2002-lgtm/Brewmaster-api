@@ -23,8 +23,10 @@ public class GuestTenantInterceptor implements HandlerInterceptor {
             return true;
         }
         Tenant tenant = tenantRepository.findBySlug(DEFAULT_SLUG)
-                .filter(Tenant::isActive)
                 .orElseThrow(() -> new NotFoundException("Default tenant not configured."));
+        if (!tenant.isActive()) {
+            throw new NotFoundException("Tenant is suspended.");
+        }
         request.setAttribute(TENANT_ATTR, tenant);
         TenantContext.set(tenant.getId());
         return true;

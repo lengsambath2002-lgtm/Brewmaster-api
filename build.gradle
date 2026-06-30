@@ -28,6 +28,7 @@ dependencies {
     implementation platform('software.amazon.awssdk:bom:2.28.16')
     implementation 'software.amazon.awssdk:s3'
     implementation 'kh.gov.nbc.bakong_khqr:sdk-java:1.0.0.15'
+    implementation 'org.springframework.security:spring-security-crypto'
 
     runtimeOnly 'org.postgresql:postgresql'
 
